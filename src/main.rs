@@ -3,9 +3,12 @@
     The purpose of this program is to generate gcode based on a text input that describes the intended output.
 
     The program will snake through the given input to produce gcode output.
+
+    Run using "cargo run <inputtext>" for example "cargo run test1.txt"
 */
 
 use std::env;
+use std::process;
 use utils::read_to_str_vec;
 
 struct LaserCutter {
@@ -70,38 +73,86 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     
     //only takes one command line arg (executing file name is automatically included)
-    assert!(args.len() == 2);
+    if args.len() != 2{
+        println!("Please execute by using command \"cargo run <textfile>\"");
+        process::exit(1);
+    }
 
     let input = read_to_str_vec(args[1].as_str());
-    for i in 0..input.len() {
+    for (i, str) in input.iter().enumerate() {
+        //go forward through the array
         if (i % 2) == 0 {
-            for c in input[i].char_indices() {
-                if c.1 == 'X' && !laser.laser_state{
+            let mut str_itr = str.char_indices().peekable();
+            while let Some(c) = str_itr.next() {
+                // if we can peek, peek
+                if let Some(next_char) = str_itr.peek(){
+                    if c.1 == 'X' && next_char.1 == 'X' && laser.laser_state {
+                        // Skipping i,c.0
+                        continue;
+                    }
+                    else if c.1 == 'X' && !laser.laser_state{
+                        laser.set_pos(i as f32, c.0 as f32);
+                        laser.toggle_laser();
+                    }
+                    //if the laser is on and next square is an x, just move.
+                    else if c.1 == 'X' && laser.laser_state {
+                        laser.set_pos(i as f32, c.0 as f32);
+                    }
+                    //if the next square is not an x and laser is on, turn it off
+                    else if c.1 != 'X' && laser.laser_state{
+                        laser.toggle_laser();
+                    }
+                }
+                //we're at the end of row cases
+                else if c.1 == 'X' && !laser.laser_state{
                     laser.set_pos(i as f32, c.0 as f32);
                     laser.toggle_laser();
                 }
+                //if the laser is on and next square is an x, just move.
                 else if c.1 == 'X' && laser.laser_state {
-                    //just move to position
                     laser.set_pos(i as f32, c.0 as f32);
                 }
-                else if laser.laser_state{
-                    //if on, turn off
+                //if the next square is not an x and laser is on, turn it off
+                else if c.1 != 'X' && laser.laser_state{
                     laser.toggle_laser();
                 }
             }
         }
+        
+        //go backwards through the array
         else {
-            for c in input[i].char_indices().rev() {
-                if c.1 == 'X' && !laser.laser_state{
-                    laser.set_pos(i as f32, c.0 as f32);
-                    laser.toggle_laser();
+            let mut str_itr = str.char_indices().rev().peekable();
+            while let Some(c) = str_itr.next() {
+                //if we can peek, peek
+                if let Some(next_char) = str_itr.peek(){
+                    if c.1 == 'X' && next_char.1 == 'X' && laser.laser_state {
+                        // Skipping i,c.0
+                        continue;
+                    }
+                    else if c.1 == 'X' && !laser.laser_state{
+                        laser.set_pos(i as f32, c.0 as f32);
+                        laser.toggle_laser();
+                    }
+                    //if the laser is on and next square is an x, just move.
+                    else if c.1 == 'X' && laser.laser_state {
+                        laser.set_pos(i as f32, c.0 as f32);
+                    }
+                    //if the next square is not an x and laser is on, turn it off
+                    else if c.1 != 'X' && laser.laser_state{
+                        laser.toggle_laser();
+                    }
                 }
+                //check end of row cases
+                else if c.1 == 'X' && !laser.laser_state{
+                        laser.set_pos(i as f32, c.0 as f32);
+                        laser.toggle_laser();
+                }
+                //if the laser is on and next square is an x, just move.
                 else if c.1 == 'X' && laser.laser_state {
-                    //just move to position
                     laser.set_pos(i as f32, c.0 as f32);
                 }
-                else if laser.laser_state{
-                    //if on, turn off
+                //if the next square is not an x and laser is on, turn it off
+                else if c.1 != 'X' && laser.laser_state{
                     laser.toggle_laser();
                 }
             }
@@ -112,6 +163,7 @@ fn main() {
     laser.display_time();
 }
 
+#[cfg(test)]
 mod tests{
     use super::LaserCutter;
 
